@@ -1,11 +1,9 @@
 streamlit
 langchain
-langchain-community
+langchain-classic
 langchain-openai
 langchain-chroma
 langchain-huggingface
+sentence-transformers>=5.2.0
 pypdf
-unstructured
-camelot-py
-ghostscript
 python-dotenv
