@@ -1,0 +1,11 @@
+streamlit
+langchain
+langchain-community
+langchain-openai
+langchain-chroma
+langchain-huggingface
+pypdf
+unstructured
+camelot-py
+ghostscript
+python-dotenv
