@@ -1,0 +1,23 @@
+venv/
+    chroma_db/
+    __pycache__/
+    .env
+    .DS_Store
+    ```
+    *(Note: `.DS_Store` is a hidden Mac file you'll want to keep off GitHub too).*
+
+3.  **Re-add the correct files:**
+    Now that the ignore rules are in place, Git will skip the folders we don't want:
+    ```bash
+    git add .
+    ```
+
+4.  **Verify (Optional but good):**
+    Type `git status`. You should see `app.py`, `processor.py`, and `engine.py` in green, but you should **NOT** see thousands of files from `venv`.
+
+5.  **Commit and Push:**
+    
+```bash
+    git commit -m "Cleaned up tracking with gitignore"
+    git push -u origin main
+    ```

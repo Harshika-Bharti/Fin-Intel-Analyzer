@@ -1,21 +1,27 @@
 import streamlit as st
-from processor import process_pdf  # This imports your new file!
-
-st.set_page_config(page_title="Fin-Intel Pro", page_icon="📈")
+from processor import process_pdf
+from engine import save_to_database, get_financial_answer
 
 st.title("Financial Intelligence Engine 📈")
-st.markdown("---")
 
-uploaded_file = st.file_uploader("Upload a Financial PDF (Annual Report, 10-K, etc.)", type="pdf")
+uploaded_file = st.file_uploader("Upload Report", type="pdf")
 
 if uploaded_file:
-    # This 'spinner' makes the UI look professional while the Mac processes the file
-    with st.spinner("Ripping through the PDF..."):
-        # We call the function from processor.py
-        data_chunks = process_pdf(uploaded_file)
-        
-        st.success(f"Successfully processed! Found {len(data_chunks)} sections of data.")
-        
-        # Show the first chunk so we can verify it's working
-        with st.expander("View Raw Data Preview"):
-            st.write(data_chunks[0])
+    # We only process if it hasn't been done yet for this session
+    if "processed" not in st.session_state:
+        with st.spinner("Analyzing Financial Data..."):
+            chunks = process_pdf(uploaded_file)
+            save_to_database(chunks)
+            st.session_state.processed = True
+            st.success("Analysis Complete!")
+
+    # Chat UI
+    user_input = st.chat_input("Ask about revenue, risks, or trends...")
+    if user_input:
+        with st.chat_message("user"):
+            st.write(user_input)
+            
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                answer = get_financial_answer(user_input)
+                st.write(answer)
