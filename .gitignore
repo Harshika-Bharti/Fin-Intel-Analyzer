@@ -21,3 +21,8 @@ venv/
     git commit -m "Cleaned up tracking with gitignore"
     git push -u origin main
     ```
+.env
+chroma_db/
+__pycache__/
+venv/
+.DS_Store

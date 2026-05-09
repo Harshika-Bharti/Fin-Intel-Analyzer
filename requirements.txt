@@ -5,5 +5,7 @@ langchain-openai
 langchain-chroma
 langchain-huggingface
 sentence-transformers>=5.2.0
+torch
+torchvision
 pypdf
 python-dotenv
