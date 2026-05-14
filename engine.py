@@ -4,53 +4,109 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
-import os
 
-# 1. Initialize local embeddings (Still using HuggingFace on your M2)
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+# Embedding model
+embeddings = HuggingFaceEmbeddings(
+    model_name="all-MiniLM-L6-v2"
+)
+
 DB_PATH = "./chroma_db"
 
-def save_to_database(chunks):
+
+def save_to_database(documents):
     """
-    Takes text chunks and saves them into the local Chroma Vector Database.
+    Saves LangChain Documents into ChromaDB.
     """
-    db = Chroma.from_texts(
-        chunks, 
-        embeddings, 
+
+    db = Chroma.from_documents(
+        documents=documents,
+        embedding=embeddings,
         persist_directory=DB_PATH
     )
+
     return db
+
 
 def get_financial_answer(user_question):
     """
-    Retrieves data from Chroma and generates an answer using local Llama 3.
+    Retrieves relevant chunks and generates
+    a grounded financial response with citations.
     """
-    # Load the existing database from your Mac
-    db = Chroma(persist_directory=DB_PATH, embedding_function=embeddings)
-    retriever = db.as_retriever(search_kwargs={"k": 3})
-    
-    # 2. Setup the Local LLM (Ollama)
-    # This uses the Llama 3 model you just downloaded!
-    llm = Ollama(model="llama3")
-    
-    system_prompt = (
-        "You are a professional financial assistant. Use the following pieces of "
-        "retrieved context to answer the question. If you don't know the answer, "
-        "say you don't know. Use three sentences maximum and keep the answer concise.\n\n"
-        "Context: {context}"
+
+    # Load DB
+    db = Chroma(
+        persist_directory=DB_PATH,
+        embedding_function=embeddings
     )
-    
+
+    # Better retriever (MMR retrieval)
+    retriever = db.as_retriever(
+        search_type="mmr",
+        search_kwargs={
+            "k": 5,
+            "fetch_k": 20
+        }
+    )
+
+    # Local LLM
+    llm = Ollama(model="llama3")
+
+    # Stronger hallucination-control prompt
+    system_prompt = """
+You are an AI financial document analysis assistant.
+
+Use ONLY the provided context to answer the question.
+
+Rules:
+1. Do NOT hallucinate.
+2. If the answer is not present in the context, say:
+   "The uploaded documents do not contain this information."
+3. Keep answers factual and concise.
+4. Mention page references when possible.
+
+Context:
+{context}
+"""
+
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_prompt),
-            ("human", "{input}"),
+            ("human", "{input}")
         ]
     )
 
-    # Create the modern RAG chain
-    question_answer_chain = create_stuff_documents_chain(llm, prompt)
-    rag_chain = create_retrieval_chain(retriever, question_answer_chain)
-    
-    # Get the response locally
-    response = rag_chain.invoke({"input": user_question})
-    return response["answer"]
+    # Create QA chain
+    question_answer_chain = create_stuff_documents_chain(
+        llm,
+        prompt
+    )
+
+    # Create RAG chain
+    rag_chain = create_retrieval_chain(
+        retriever,
+        question_answer_chain
+    )
+
+    # Run query
+    response = rag_chain.invoke({
+        "input": user_question
+    })
+
+    # Extract retrieved source docs
+    sources = []
+
+    for doc in response["context"]:
+
+        source_info = {
+            "page": doc.metadata.get("page"),
+            "source": doc.metadata.get("source"),
+            "path": doc.metadata.get("path"),
+            "content": doc.page_content[:300]
+        }
+
+        sources.append(source_info)
+
+    return {
+        "answer": response["answer"],
+        "sources": sources
+    }
